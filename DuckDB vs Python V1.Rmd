@@ -1,0 +1,329 @@
+---
+title: "DuckDB and Python"
+author: "Cheikh Sidati DIENG"
+date: '2023-03-20'
+output: pdf_document
+urlcolor: blue
+---
+
+![DuckDB logo](duckdblogo.png)
+
+# 1- What is DuckDB?
+
+DuckDB is an open-source, in-memory SQL database management system (DBMS) designed to be integrated into other applications as a library or module and used as a local data store. 
+
+DuckDB supports the full SQL standard and is designed for analytical query workloads that are typically used for data analytics. 
+
+# 2- Why DuckDB?
+
+The typical scenario for using SQL to manipulate data is :    
+
+- load the dataset (such as a CSV file) into a database server;    
+- load the data into a Pandas DataFrame through an application (such as Python) using SQL:   
+![Typical workflow for manipulating data with SQL](workflow1.png). 
+
+DuckDB eliminates the need to load the dataset into a database server, and allows to directly load the dataset using SQL. Once the DataFrame is loaded, DuckDB and SQL can be used for manipulating the DataFrame: 
+
+![Workflow for manipulating data with DuckDB](workflow3.png). 
+
+# 3- How does it work?
+
+Analytical queries involve querying large datasets and aggregating or summarizing the data in various ways. DuckDB mainly uses two techniques for optimizing analytical query workloads :
+
+- Columnar storage and   
+- Vectorized processing. 
+
+## 3-1- Columnar storage :
+
+Columnar databases organize data by columns rather than by rows. Each column is stored separately, with all the values in that column grouped together. This configuration allows for :
+
+- **better compression of data** that can lead to optimized storage requirements and query performance as values in a column are often more homogeneous;  
+- **more efficient processing** as the database system read only the necessary columns from disk rather than reading entire rows of data to perform aggregations and calculations on subsets of columns.  
+
+![Columnar storage](columnarstorage.png)
+
+
+## 3-2- Vectorized processing :
+
+In vectorized query processing, operations are performed at the same time on multiple data elements grouped together into vectors rather than processing each data element individually.   
+This can improve query performance by reducing the number of required CPU cycles.  
+
+![Vectorized processing](vectorizedprocessing.png)
+
+
+
+# 4- How to install DuckDB?
+
+The DuckDB Python API can be installed using pip.
+
+```{bash}
+pip install duckdb
+```
+After the installation we import DuckDB in python script :  
+
+```{python}
+import duckdb
+```
+
+We will use this dataset for the exploration of the basic functionnality of DuckDB : [Dataset](https://www.kaggle.com/datasets/knightbearr/sales-product-data/).
+
+
+# 5- Connecting to a database :
+
+The first step to start using DuckDB is creating a connection object with the **connect** method.
+
+By default, **duckdb.connect()** will return a connection to an **in-memory database** where no data is persisted to disk (i.e. all data is lost when the host process is terminated).  
+
+```{python}
+# connecting to an in-memory database
+import duckdb
+conn = duckdb.connect()
+```
+
+To save the data on disk we must specify the filename of the database. By doing so, any data written to that connection will be persisted, and can be reloaded by re-connecting to the same file :  
+
+```{python eval=FALSE}
+# connecting DuckDB to a file called "mydatabase.db"
+import duckdb
+conn = duckdb.connect('mydatabase.db')
+```
+
+This creates a connection to a database called 'mydatabase.db'. If the database does not exist, it will be created automatically.  
+
+We can connect to an existing database in read only mode by setting the parameter **read_only** to True :  
+
+```{python eval=FALSE}
+# connecting DuckDB to a persistent database with read-only mode
+import duckdb
+conn = duckdb.connect('mydatabase.db', read_only = True)
+```
+
+# 6- SQL with DuckDB :
+
+DuckDB is a SQL database management system, which means that it supports a wide range of SQL commands for managing databases and manipulating data. Some of the main commands of DuckDB are:
+
+- **CREATE DATABASE** : Creates a new database.
+- **CREATE TABLE** : Creates a new table in the database.
+- **SELECT** : Retrieves data from one or more tables.
+- **INSERT** : Inserts data into a table.
+- **UPDATE** : Modifies existing data in a table.
+- **DELETE** : Removes data from a table.
+- **ALTER TABLE** : Modifies the structure of a table.
+- **DROP TABLE** : Deletes a table from the database.
+- **CREATE INDEX** : Creates an index on one or more columns in a table.
+- **DROP INDEX** : Deletes an index from a table.
+- **COMMIT** : Commits a transaction to the database.
+- **ROLLBACK** : Rolls back a transaction in the database.
+- **GRANT** : Grants permissions to a user or role.
+- **REVOKE** : Revokes permissions from a user or role.
+- **SHOW TABLES** : Lists all tables in the current database.
+- **DESCRIBE** : Describes the structure of a table.  
+
+These are some of the main commands of DuckDB, but the full list of SQL commands supported by DuckDB is much longer. 
+
+More information about DuckDB and its SQL commands are avalaible in the [official documentation](https://duckdb.org/docs/sql/).  
+
+In DuckDB, we notice two different ways of executing SQL commands : **sql** and **execute** methods.  
+
+In Python, SQL commands can be executed by applying the **sql** method. 
+The sql method internally calls the **execute** method to execute the SQL command, but it also handles the process of fetching the results and converting them into a pandas DataFrame.  
+
+Below, some examples of SQL commands with DuckDB.
+
+## 6-1- Creating a table :  
+
+To create a table in DuckDB using Python, we execute a **CREATE TABLE** statement using the sql method :  
+
+```{python}
+import duckdb
+conn = duckdb.connect()
+conn.sql("CREATE TABLE users (id INTEGER, name VARCHAR, sex VARCHAR, age INTEGER)")
+```
+This creates a table called 'users' with four columns: id, name, sex and age.  
+
+
+## 6-2- Inserting data into the table :  
+
+To insert data into a table in DuckDB using Python, we execute an **INSERT** statement using the sql method:
+
+```{python echo=TRUE}
+conn.sql("""
+   INSERT INTO users
+   VALUES 
+   (1, 'Samba', 'H', 42), 
+   (2, 'Mass', 'H', 56), 
+   (3, 'Fanta', 'F', 54), 
+   (4, 'Anna', 'F', 20),
+   (5, 'Luc', 'H', 60)
+   """)
+```
+This inserts four rows into the 'users' table.  
+
+## 6-3- Querying data from a table :  
+
+To retrieve data from a table in DuckDB using Python, we execute a **SELECT** statement using the sql method and then use a for loop to iterate over the results:
+
+```{python eval=FALSE, include=FALSE}
+conn.sql("SELECT * FROM users WHERE id=1")
+```
+## 6-4-  Updating data in a table :  
+
+To update data in a table in DuckDB using Python, we execute an **UPDATE** statement using the sql method :  
+
+```{python}
+conn.sql("UPDATE users SET name ='Lamine' WHERE id=1")
+```
+This updates 'name' for row with id=1 into the 'users' table.   
+
+## 6-5- Deleting data from a table :
+
+To delete data from a table in DuckDB using Python, we execute a **DELETE** statement using the sql method :  
+
+```{python}
+conn.sql("DELETE FROM users WHERE id=5")
+```
+This removes row with id=5 into the 'users' table.  
+
+
+# 7- Data input with DuckDB :
+
+DuckDB can ingest data from a wide variety of formats (csv files,Excel spreadsheets, XML files, databases... ), both on-disk and in-memory.
+
+The process for loading a csv file with headers uses **read_csv_auto** method :
+
+```{python include=FALSE}
+import duckdb
+conn = duckdb.connect()
+conn.sql("""
+          SELECT *
+          FROM read_csv_auto("/Users/csdieng/DUCKDB-TUTORIAL/dataset/Sales_April_2019.csv", header = TRUE)
+          """)
+```
+
+
+We can directly query a csv file as well :
+
+```{python include=FALSE}
+import duckdb
+conn = duckdb.connect()
+conn.sql("SELECT * FROM '/Users/csdieng/DUCKDB-TUTORIAL/dataset/Sales_April_2019.csv'")
+```
+
+DuckDB can also directly query Pandas DataFrames, Polars DataFrames and Arrow tables.
+
+```{python include=FALSE}
+import duckdb
+import pandas as pd
+csv_url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data'
+
+# using the attribute information as the column names
+col_names = ['Sepal_Length','Sepal_Width','Petal_Length','Petal_Width','Class']
+iris =  pd.read_csv(csv_url, names = col_names)
+
+# querying pandas dataframe with DuckDB
+duckdb.sql("SELECT * FROM iris")
+```
+
+# 8- Retrieving data from a request:
+
+The result of a DuckDB query is returned as a **Relation**. A relation is a symbolic representation of the query. The query is not executed until the result is fetched or requested to be printed to the screen.
+
+DuckDB’s Python client provides multiple methods that can be used to efficiently retrieve data in a variety of formats : 
+
+- **fetchall()** for Python objects
+- **df()** for Pandas Dataframe
+- **pl()** for Polars Dataframe
+- **fetchnumpy()** for Numpy Arrays.
+
+Here is how to retrieve a request as a Pandas Dataframe with the **df() ** method :
+
+```{python eval=FALSE, include=FALSE}
+import duckdb
+conn = duckdb.connect()
+sales_df = conn.sql("""
+                     SELECT *
+                     FROM      read_csv_auto("/Users/csdieng/DUCKDB-TUTORIAL/dataset/Sales_April_2019.csv", header = TRUE)
+                    """).df()
+```
+
+
+# 9- Registering a dataframe as a table:
+
+To create a table in the database from the retrieved dataframe, we use the **register()** method with the name of the virtual table we want to create.
+
+```{python}
+import duckdb
+conn = duckdb.connect()
+df = conn.sql("""
+          SELECT *
+          FROM read_csv_auto("/Users/csdieng/DUCKDB-TUTORIAL/dataset/Sales_April_2019.csv", header = TRUE)
+          """).df()
+conn.register("df_view", df)
+```
+
+## 10- Writing data to disk :  
+
+DuckDB supports writing Relation objects directly to disk in a variety of formats. The COPY statement can be used to write data to disk using SQL as an alternative.  
+
+
+# 11- To sum up :  
+
+To illustrate some benefits of DuckDB, we will perform a set of operations with Pandas and DuckDB :  
+
+- load a bunch of csv files;
+- concatenate the different files in one;
+- retrieve the first 10 rows of the concatenated data. 
+
+We will use this [dataset](https://www.kaggle.com/datasets/knightbearr/sales-product-data/).    
+
+## 11-1- Using Pandas :
+
+```{python}
+import pandas as pd
+import time
+import glob
+import duckdb
+
+current_time = time.time()
+
+# using a list comprehension for concatenation
+df = pd.concat([pd.read_csv(f) for f in glob.glob('/Users/csdieng/DUCKDB-TUTORIAL/dataset/*.csv')])
+
+# processing time with Pandas
+print(f"Processing time with Pandas : {(time.time() - current_time)}")
+
+print(df.head(10))
+```
+
+## 11-2- Using DuckDB :  
+
+```{python}
+current_time = time.time()
+
+# using a DuckDB query with a conversion to dataframe
+df = conn.sql("""
+                   SELECT * 
+                   FROM read_csv_auto('/Users/csdieng/DUCKDB-TUTORIAL/dataset/*.csv', header = True)
+                   LIMIT 10
+               """).df()
+
+# processing time with DuckDB
+print(f"Processing time with DuckDB : {time.time() - current_time}")
+
+print(df.head(10))
+```
+
+We notice than DuckDB is at least **10 times faster** than Pandas with a simpler syntax.  
+
+
+# 12- Webography :  
+
+- [SQL on Python, part 1: The simplicity of DuckDB](https://www.orchest.io/blog/sql-on-python-part-1-the-simplicity-of-duckdb)
+
+- [DuckDB Documentation](https://duckdb.org/docs/api/python/overview)
+
+- [DuckDB Tutorial](https://www.youtube.com/watch?v=AjsB6lM2-zw). 
+
+- [Using DuckDB for Data Analytics](https://levelup.gitconnected.com/using-duckdb-for-data-analytics-bab3e3ff032c)
+
+
